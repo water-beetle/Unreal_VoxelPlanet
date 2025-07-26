@@ -30,7 +30,7 @@ void AVoxelManager::BeginPlay()
 				Chunk->RegisterComponent();
 				Chunk->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
 				
-				FChunkInfo ChunkInfo{FVector(x,y,z), CellSize, CellCount, ChunkCount};
+				FChunkInfo ChunkInfo{FVector(x,y,z), CellSize, CellCount, ChunkCount, 1};
 				Chunk->GenerateMesh(ChunkInfo);	
 			}
 		}

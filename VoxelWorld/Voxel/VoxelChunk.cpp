@@ -46,6 +46,7 @@ void UVoxelChunk::GenerateMesh(FChunkInfo& ChunkInfo)
 	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	MeshComponent->SetGenerateOverlapEvents(true);
 	MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	MeshComponent->GetDynamicMesh()->Reset();
 	
 	FDynamicMesh3 Mesh;
 	Mesh.EnableVertexNormals(FVector3f());
@@ -67,8 +68,8 @@ void UVoxelChunk::GenerateMesh(FChunkInfo& ChunkInfo)
 		Mesh.AppendTriangle(T0, T1, T2);
 	}
 
+	//FMeshNormals::QuickComputeVertexNormals(Mesh);
 	// 메시 적용
-	MeshComponent->GetDynamicMesh()->Reset();
 	MeshComponent->GetDynamicMesh()->SetMesh(MoveTemp(Mesh));
 	MeshComponent->NotifyMeshUpdated();
 	

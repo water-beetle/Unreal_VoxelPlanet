@@ -16,25 +16,21 @@ FVoxelMeshData MarchingCubeMeshGenerator::GenerateMesh(FChunkInfo& ChunkInfo)
 	if (ChunkInfo.LOD <= 0)
 		ChunkInfo.LOD = 1;
 	
-	for (int x=0; x < ChunkInfo.CellCount; x += ChunkInfo.LOD)
+	for (int z=0; z < ChunkInfo.CellCount; z += ChunkInfo.LOD)
 	{
 		for (int y=0; y < ChunkInfo.CellCount; y += ChunkInfo.LOD)
 		{
-			for (int z=0; z < ChunkInfo.CellCount; z += ChunkInfo.LOD)
+			for (int x=0; x < ChunkInfo.CellCount; x += ChunkInfo.LOD)
 			{
 				FVector CubeCorner[8];
+				SetCubeCorner(x, y, z, CubeCorner);
 				float CubeCornerDensity[8];
-
+			
 				for (int i = 0; i < 8; i++)
 				{
-					int ix = x + ((i & 1) ? 1 : 0);
-					int iy = y + ((i & 2) ? 1 : 0);
-					int iz = z + ((i & 4) ? 1 : 0);
-
 					// 중심을 원점으로 이동 후, ChunkIndex 만큼 이동시키기
-					FVector WorldPos = FVector(ix, iy, iz) * ChunkInfo.CellSize - FVector(ChunkSize) * 0.5f + ChunkPos; 
-					CubeCorner[i] = WorldPos;
-					CubeCornerDensity[i] = SampleDensity(WorldPos, VoxelSize * 0.5f);
+					CubeCorner[i] = CubeCorner[i] * ChunkInfo.CellSize - FVector(ChunkSize) * 0.5f + ChunkPos; 
+					CubeCornerDensity[i] = SampleDensity(CubeCorner[i], VoxelSize * 0.1f);
 				}
 
 				int cubeIndex = 0;
@@ -99,9 +95,9 @@ FVoxelMeshData MarchingCubeMeshGenerator::GenerateMesh(FChunkInfo& ChunkInfo)
 					VoxelMeshData.Vertices.Add(v1);
 					VoxelMeshData.Vertices.Add(v2);
 
-					VoxelMeshData.Triangles.Add(vertIndex);
-					VoxelMeshData.Triangles.Add(vertIndex + 1);
 					VoxelMeshData.Triangles.Add(vertIndex + 2);
+					VoxelMeshData.Triangles.Add(vertIndex + 1);
+					VoxelMeshData.Triangles.Add(vertIndex);
 				}
 			}
 		}
@@ -123,4 +119,16 @@ FVector MarchingCubeMeshGenerator::InterpolateVertex(const FVector& p1, const FV
 {
 	float t = (0.0f - valp1) / (valp2 - valp1);
 	return FMath::Lerp(p1, p2, t);
+}
+
+void MarchingCubeMeshGenerator::SetCubeCorner(int X, int Y, int Z, FVector* V)
+{
+	V[4].X = V[5].X = V[0].X = V[1].X = X;
+	V[7].X = V[6].X = V[3].X = V[2].X = X + 1;
+
+	V[0].Y = V[1].Y = V[2].Y = V[3].Y = Y;
+	V[4].Y = V[5].Y = V[6].Y = V[7].Y = Y + 1;
+
+	V[0].Z = V[3].Z = V[4].Z = V[7].Z = Z;
+	V[1].Z = V[2].Z = V[5].Z = V[6].Z = Z + 1;
 }
