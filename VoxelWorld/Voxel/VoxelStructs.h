@@ -1,4 +1,5 @@
 #pragma once
+#include "VoxelStructs.generated.h"
 
 struct FVoxelMeshData
 {
@@ -8,13 +9,37 @@ struct FVoxelMeshData
 	TArray<int> Triangles;
 };
 
-struct FChunkInfo
+struct ChunkSettingInfo
 {
 	FVector ChunkIndex;
 	int CellSize;
 	int CellCount;
 	int ChunkCount;
 	int LOD;
+};
+
+struct Chunk
+{
+	float Density;
+	int Id;
+};
+
+USTRUCT(Blueprintable)
+struct FVertexDensity
+{
+	GENERATED_BODY()
+	FVertexDensity()
+		: Density(0.0f), Id(0) {};
+	FVertexDensity(const float Density, const int Id)
+	{
+		this->Density = Density;
+		this->Id = Id;
+	};
+    
+	UPROPERTY(BlueprintReadOnly)
+	float Density;
+	UPROPERTY(BlueprintReadOnly)
+	int Id;
 };
 	
 

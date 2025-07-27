@@ -25,14 +25,26 @@ public:
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType,
 	                           FActorComponentTickFunction* ThisTickFunction) override;
+	void GenerateMeshComponent();
 
 public:
-	void GenerateMesh(FChunkInfo& ChunkInfo);
 
+	void Build(ChunkSettingInfo& _chunkSettingInfo);
+	void UpdateMesh();
+
+	void Sculpt();
+	
 	UPROPERTY()
 	UDynamicMeshComponent* MeshComponent;
+	UPROPERTY()
+	TArray<FVertexDensity> VertexDensityData;
 
-	int UnitNum = 20;
-	int UnitSize = 100;
+private:
+	void CalculateVertexDensity();
+	static float SampleDensity(const FVector& Pos, int Radius);
+	static int GetIndex(int x, int y, int z, int CellCount);
+	
+	ChunkSettingInfo chunkSettingInfo;
+
 	
 };

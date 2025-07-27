@@ -35,24 +35,48 @@ void UVoxelChunk::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 	// ...
 }
 
-void UVoxelChunk::GenerateMesh(FChunkInfo& ChunkInfo)
-{
-	FVoxelMeshData VoxelMeshData = MarchingCubeMeshGenerator::GenerateMesh(ChunkInfo);
 
+
+void UVoxelChunk::Build(ChunkSettingInfo& _chunkSettingInfo)
+{
+	// 클래스 변수 값 업데이트
+	chunkSettingInfo = _chunkSettingInfo;
+
+	// Marching Cube에서 사용할 vertex의 desntiy 값 초기화
+	CalculateVertexDensity();
+	
+	// Dynamic Mesh Component 생성 및 등록
+	GenerateMeshComponent();
+
+	// Marching Cube를 사용한 Mesh 업데이트
+	UpdateMesh();
+}
+
+void UVoxelChunk::GenerateMeshComponent()
+{
 	MeshComponent = NewObject<UDynamicMeshComponent>(GetOwner());
 	MeshComponent->RegisterComponent();
+	MeshComponent->AttachToComponent(GetOwner()->GetRootComponent(),	FAttachmentTransformRules::KeepRelativeTransform);
 	MeshComponent->SetComplexAsSimpleCollisionEnabled(true, true);
 	MeshComponent->bUseAsyncCooking = true;
 	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	MeshComponent->SetGenerateOverlapEvents(true);
 	MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	MeshComponent->SetMobility(EComponentMobility::Movable);
 	MeshComponent->GetDynamicMesh()->Reset();
+}
+
+void UVoxelChunk::UpdateMesh()
+{
+	if (VertexDensityData.Num() != (chunkSettingInfo.CellCount+1) * (chunkSettingInfo.CellCount+1) * (chunkSettingInfo.CellCount+1))
+		return;
+	
+	FVoxelMeshData VoxelMeshData = MarchingCubeMeshGenerator::GenerateMesh(chunkSettingInfo, VertexDensityData);
 	
 	FDynamicMesh3 Mesh;
 	Mesh.EnableVertexNormals(FVector3f());
-	
-
 	TArray<int32> VIDs;
+	
 	for (int i = 0; i < VoxelMeshData.Vertices.Num(); i++)
 	{
 		int32 ID = Mesh.AppendVertex(VoxelMeshData.Vertices[i]);
@@ -72,6 +96,47 @@ void UVoxelChunk::GenerateMesh(FChunkInfo& ChunkInfo)
 	// 메시 적용
 	MeshComponent->GetDynamicMesh()->SetMesh(MoveTemp(Mesh));
 	MeshComponent->NotifyMeshUpdated();
+}
+
+void UVoxelChunk::Sculpt()
+{
+	// Sculpt
+
+	UpdateMesh();
+}
+
+void UVoxelChunk::CalculateVertexDensity()
+{
+	VertexDensityData.SetNum((chunkSettingInfo.CellCount+1) * (chunkSettingInfo.CellCount+1) * (chunkSettingInfo.CellCount+1));
+
+	const float ChunkSize = chunkSettingInfo.CellSize * chunkSettingInfo.CellCount;
+	const float VoxelSize = ChunkSize * chunkSettingInfo.ChunkCount;
+	const FVector ChunkPos = (chunkSettingInfo.ChunkIndex + 0.5f) * ChunkSize - FVector(VoxelSize * 0.5f);
 	
+	for (int z=0; z < chunkSettingInfo.CellCount + 1; z += 1)
+	{
+		for (int y=0; y < chunkSettingInfo.CellCount + 1; y += 1)
+		{
+			for (int x=0; x < chunkSettingInfo.CellCount + 1; x += 1)
+			{
+				FVector Pos = FVector(x, y, z) * chunkSettingInfo.CellSize - FVector(ChunkSize) * 0.5f + ChunkPos;
+				VertexDensityData[GetIndex(x,y,z,chunkSettingInfo.CellCount)].Density = SampleDensity(Pos, VoxelSize * 0.3f);
+			}
+		}
+	}
+}
+
+float UVoxelChunk::SampleDensity(const FVector& Pos, int Radius)
+{
+	float Distance = Pos.Size();
+	float Density = Radius - Distance;
+	
+	//float Noise = FMath::PerlinNoise3D(Position * NoiseScale) * 100.0f;
+	return Density;
+}
+
+int UVoxelChunk::GetIndex(const int x, const int y, const int z, const int CellCount)
+{
+	return x + y * CellCount + z * CellCount * CellCount;
 }
 

@@ -3,24 +3,24 @@
 #include "MarchingCubeLookupTable.h"
 #include "VoxelWorld/Voxel/VoxelStructs.h"
 
-FVoxelMeshData MarchingCubeMeshGenerator::GenerateMesh(FChunkInfo& ChunkInfo)
+FVoxelMeshData MarchingCubeMeshGenerator::GenerateMesh(ChunkSettingInfo& chunkSettingInfo, TArray<FVertexDensity> VertexDensityData)
 {
 	FVoxelMeshData VoxelMeshData;
 	
-	const float ChunkSize = ChunkInfo.CellSize * ChunkInfo.CellCount;
-	const float VoxelSize = ChunkSize * ChunkInfo.ChunkCount;
+	const float ChunkSize = chunkSettingInfo.CellSize * chunkSettingInfo.CellCount;
+	const float VoxelSize = ChunkSize * chunkSettingInfo.ChunkCount;
 
 	// 현재 Chunk의 중심 좌표 -> Voxel 중심을 원점으로 이동 후, Chunk 중심좌표 계산
-	const FVector ChunkPos = (ChunkInfo.ChunkIndex + 0.5f) * ChunkSize - FVector(VoxelSize * 0.5f);
+	const FVector ChunkPos = (chunkSettingInfo.ChunkIndex + 0.5f) * ChunkSize - FVector(VoxelSize * 0.5f);
 
-	if (ChunkInfo.LOD <= 0)
-		ChunkInfo.LOD = 1;
+	if (chunkSettingInfo.LOD <= 0)
+		chunkSettingInfo.LOD = 1;
 	
-	for (int z=0; z < ChunkInfo.CellCount; z += ChunkInfo.LOD)
+	for (int z=0; z < chunkSettingInfo.CellCount; z += chunkSettingInfo.LOD)
 	{
-		for (int y=0; y < ChunkInfo.CellCount; y += ChunkInfo.LOD)
+		for (int y=0; y < chunkSettingInfo.CellCount; y += chunkSettingInfo.LOD)
 		{
-			for (int x=0; x < ChunkInfo.CellCount; x += ChunkInfo.LOD)
+			for (int x=0; x < chunkSettingInfo.CellCount; x += chunkSettingInfo.LOD)
 			{
 				FVector CubeCorner[8];
 				SetCubeCorner(x, y, z, CubeCorner);
@@ -28,9 +28,10 @@ FVoxelMeshData MarchingCubeMeshGenerator::GenerateMesh(FChunkInfo& ChunkInfo)
 			
 				for (int i = 0; i < 8; i++)
 				{
+					CubeCornerDensity[i] = VertexDensityData[GetIndex(
+						CubeCorner[i].X,CubeCorner[i].Y,CubeCorner[i].Z,chunkSettingInfo.CellCount)].Density;
 					// 중심을 원점으로 이동 후, ChunkIndex 만큼 이동시키기
-					CubeCorner[i] = CubeCorner[i] * ChunkInfo.CellSize - FVector(ChunkSize) * 0.5f + ChunkPos; 
-					CubeCornerDensity[i] = SampleDensity(CubeCorner[i], VoxelSize * 0.1f);
+					CubeCorner[i] = CubeCorner[i] * chunkSettingInfo.CellSize - FVector(ChunkSize) * 0.5f + ChunkPos; 
 				}
 
 				int cubeIndex = 0;
@@ -106,15 +107,6 @@ FVoxelMeshData MarchingCubeMeshGenerator::GenerateMesh(FChunkInfo& ChunkInfo)
 	return VoxelMeshData;
 }
 
-float MarchingCubeMeshGenerator::SampleDensity(const FVector& Pos, int Radius)
-{	
-	float Distance = Pos.Size();
-	float Density = Radius - Distance;
-	
-	//float Noise = FMath::PerlinNoise3D(Position * NoiseScale) * 100.0f;
-	return Density;
-}
-
 FVector MarchingCubeMeshGenerator::InterpolateVertex(const FVector& p1, const FVector& p2, float valp1, float valp2)
 {
 	float t = (0.0f - valp1) / (valp2 - valp1);
@@ -131,4 +123,9 @@ void MarchingCubeMeshGenerator::SetCubeCorner(int X, int Y, int Z, FVector* V)
 
 	V[0].Z = V[3].Z = V[4].Z = V[7].Z = Z;
 	V[1].Z = V[2].Z = V[5].Z = V[6].Z = Z + 1;
+}
+
+int MarchingCubeMeshGenerator::GetIndex(const int x, const int y, const int z, const int CellCount)
+{
+	return x + y * CellCount + z * CellCount * CellCount;
 }
