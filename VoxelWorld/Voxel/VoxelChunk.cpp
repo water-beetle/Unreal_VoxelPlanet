@@ -137,6 +137,6 @@ float UVoxelChunk::SampleDensity(const FVector& Pos, int Radius)
 
 int UVoxelChunk::GetIndex(const int x, const int y, const int z, const int CellCount)
 {
-	return x + y * CellCount + z * CellCount * CellCount;
+	return x + y * (CellCount + 1) + z * (CellCount + 1) * (CellCount + 1);
 }
 

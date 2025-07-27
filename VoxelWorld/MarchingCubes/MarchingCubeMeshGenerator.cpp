@@ -127,5 +127,5 @@ void MarchingCubeMeshGenerator::SetCubeCorner(int X, int Y, int Z, FVector* V)
 
 int MarchingCubeMeshGenerator::GetIndex(const int x, const int y, const int z, const int CellCount)
 {
-	return x + y * CellCount + z * CellCount * CellCount;
+	return x + y * (CellCount + 1) + z * (CellCount + 1) * (CellCount + 1);
 }
