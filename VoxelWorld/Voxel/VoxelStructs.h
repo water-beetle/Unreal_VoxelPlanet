@@ -18,12 +18,6 @@ struct ChunkSettingInfo
 	int LOD;
 };
 
-struct Chunk
-{
-	float Density;
-	int Id;
-};
-
 USTRUCT(Blueprintable)
 struct FVertexDensity
 {

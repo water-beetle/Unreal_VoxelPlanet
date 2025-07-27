@@ -81,7 +81,7 @@ void UVoxelChunk::UpdateMesh()
 	{
 		int32 ID = Mesh.AppendVertex(VoxelMeshData.Vertices[i]);
 		VIDs.Add(ID);
-		Mesh.SetVertexNormal(ID, FVector3f(VoxelMeshData.Normals[i]));
+		//Mesh.SetVertexNormal(ID, FVector3f(VoxelMeshData.Normals[i]));
 	}
 
 	for (int i = 0; i < VoxelMeshData.Triangles.Num(); i += 3)
@@ -92,7 +92,7 @@ void UVoxelChunk::UpdateMesh()
 		Mesh.AppendTriangle(T0, T1, T2);
 	}
 
-	//FMeshNormals::QuickComputeVertexNormals(Mesh);
+	FMeshNormals::QuickComputeVertexNormals(Mesh);
 	// 메시 적용
 	MeshComponent->GetDynamicMesh()->SetMesh(MoveTemp(Mesh));
 	MeshComponent->NotifyMeshUpdated();

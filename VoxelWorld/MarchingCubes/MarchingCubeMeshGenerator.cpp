@@ -3,6 +3,13 @@
 #include "MarchingCubeLookupTable.h"
 #include "VoxelWorld/Voxel/VoxelStructs.h"
 
+static const int EdgeCorners[12][2] =
+{
+    {0, 1}, {1, 2}, {2, 3}, {3, 0},
+    {4, 5}, {5, 6}, {6, 7}, {7, 4},
+    {0, 4}, {1, 5}, {2, 6}, {3, 7}
+};
+
 FVoxelMeshData MarchingCubeMeshGenerator::GenerateMesh(ChunkSettingInfo& chunkSettingInfo, TArray<FVertexDensity> VertexDensityData)
 {
 	FVoxelMeshData VoxelMeshData;
@@ -15,6 +22,13 @@ FVoxelMeshData MarchingCubeMeshGenerator::GenerateMesh(ChunkSettingInfo& chunkSe
 
 	if (chunkSettingInfo.LOD <= 0)
 		chunkSettingInfo.LOD = 1;
+	
+	const int CellsPerAxis = FMath::CeilToInt(static_cast<float>(chunkSettingInfo.CellCount) / chunkSettingInfo.LOD);
+	const int EstimatedCubeCount = CellsPerAxis * CellsPerAxis * CellsPerAxis;
+	constexpr int MaxVertsPerCube = 15;
+	VoxelMeshData.Vertices.Reserve(EstimatedCubeCount * MaxVertsPerCube);
+	VoxelMeshData.Normals.Reserve(EstimatedCubeCount * MaxVertsPerCube);
+	VoxelMeshData.Triangles.Reserve(EstimatedCubeCount * MaxVertsPerCube);
 	
 	for (int z=0; z < chunkSettingInfo.CellCount; z += chunkSettingInfo.LOD)
 	{
@@ -46,32 +60,17 @@ FVoxelMeshData MarchingCubeMeshGenerator::GenerateMesh(ChunkSettingInfo& chunkSe
 
                 FVector VertexList[12];
 
-                if (MarchingCubeLooupTable::EdgeTable[cubeIndex] & 1)
-                    VertexList[0] = InterpolateVertex(CubeCorner[0], CubeCorner[1], CubeCornerDensity[0], CubeCornerDensity[1]);
-                if (MarchingCubeLooupTable::EdgeTable[cubeIndex] & 2)
-                    VertexList[1] = InterpolateVertex(CubeCorner[1], CubeCorner[2], CubeCornerDensity[1], CubeCornerDensity[2]);
-                if (MarchingCubeLooupTable::EdgeTable[cubeIndex] & 4)
-                    VertexList[2] = InterpolateVertex(CubeCorner[2], CubeCorner[3], CubeCornerDensity[2], CubeCornerDensity[3]);
-                if (MarchingCubeLooupTable::EdgeTable[cubeIndex] & 8)
-                    VertexList[3] = InterpolateVertex(CubeCorner[3], CubeCorner[0], CubeCornerDensity[3], CubeCornerDensity[0]);
-
-                if (MarchingCubeLooupTable::EdgeTable[cubeIndex] & 16)
-                    VertexList[4] = InterpolateVertex(CubeCorner[4], CubeCorner[5], CubeCornerDensity[4], CubeCornerDensity[5]);
-                if (MarchingCubeLooupTable::EdgeTable[cubeIndex] & 32)
-                    VertexList[5] = InterpolateVertex(CubeCorner[5], CubeCorner[6], CubeCornerDensity[5], CubeCornerDensity[6]);
-                if (MarchingCubeLooupTable::EdgeTable[cubeIndex] & 64)
-                    VertexList[6] = InterpolateVertex(CubeCorner[6], CubeCorner[7], CubeCornerDensity[6], CubeCornerDensity[7]);
-                if (MarchingCubeLooupTable::EdgeTable[cubeIndex] & 128)
-                    VertexList[7] = InterpolateVertex(CubeCorner[7], CubeCorner[4], CubeCornerDensity[7], CubeCornerDensity[4]);
-
-                if (MarchingCubeLooupTable::EdgeTable[cubeIndex] & 256)
-                    VertexList[8] = InterpolateVertex(CubeCorner[0], CubeCorner[4], CubeCornerDensity[0], CubeCornerDensity[4]);
-                if (MarchingCubeLooupTable::EdgeTable[cubeIndex] & 512)
-                    VertexList[9] = InterpolateVertex(CubeCorner[1], CubeCorner[5], CubeCornerDensity[1], CubeCornerDensity[5]);
-                if (MarchingCubeLooupTable::EdgeTable[cubeIndex] & 1024)
-                    VertexList[10] = InterpolateVertex(CubeCorner[2], CubeCorner[6], CubeCornerDensity[2], CubeCornerDensity[6]);
-                if (MarchingCubeLooupTable::EdgeTable[cubeIndex] & 2048)
-                	VertexList[11] = InterpolateVertex(CubeCorner[3], CubeCorner[7], CubeCornerDensity[3], CubeCornerDensity[7]);
+				for (int e = 0; e < 12; ++e)
+				{
+					if (MarchingCubeLooupTable::EdgeTable[cubeIndex] & (1 << e))
+					{
+						int c0 = EdgeCorners[e][0];
+						int c1 = EdgeCorners[e][1];
+						VertexList[e] = InterpolateVertex(
+							CubeCorner[c0], CubeCorner[c1],
+							CubeCornerDensity[c0], CubeCornerDensity[c1]);
+					}
+				}
 
 				for (int i = 0; MarchingCubeLooupTable::TriTable[cubeIndex][i] != -1; i += 3)
 				{
@@ -83,13 +82,13 @@ FVoxelMeshData MarchingCubeMeshGenerator::GenerateMesh(ChunkSettingInfo& chunkSe
 					FVector v1 = VertexList[idx1];
 					FVector v2 = VertexList[idx2];
 
-					FVector Edge1 = v1 - v0;
-					FVector Edge2 = v2 - v0;
-					FVector Normal = FVector::CrossProduct(Edge1, Edge2).GetSafeNormal();
-
-					VoxelMeshData.Normals.Add(Normal);
-					VoxelMeshData.Normals.Add(Normal);
-					VoxelMeshData.Normals.Add(Normal);
+					// FVector Edge1 = v1 - v0;
+					// FVector Edge2 = v2 - v0;
+					// FVector Normal = FVector::CrossProduct(Edge1, Edge2).GetSafeNormal();
+					//
+					// VoxelMeshData.Normals.Add(Normal);
+					// VoxelMeshData.Normals.Add(Normal);
+					// VoxelMeshData.Normals.Add(Normal);
 					
 					int vertIndex = VoxelMeshData.Vertices.Num();
 					VoxelMeshData.Vertices.Add(v0);
