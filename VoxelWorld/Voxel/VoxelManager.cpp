@@ -19,6 +19,8 @@ AVoxelManager::AVoxelManager()
 void AVoxelManager::BeginPlay()
 {
 	Super::BeginPlay();
+
+	const double StartTime = FPlatformTime::Seconds();
 	
 	for (int32 x = 0; x < ChunkCount; ++x)
 	{
@@ -35,6 +37,9 @@ void AVoxelManager::BeginPlay()
 			}
 		}
 	}
+	
+	double ElapsedTime = (FPlatformTime::Seconds() - StartTime) * 1000.0;  // 밀리초 단위
+	UE_LOG(LogTemp, Warning, TEXT("Time : %.2f ms"), ElapsedTime);
 }
 
 // Called every frame

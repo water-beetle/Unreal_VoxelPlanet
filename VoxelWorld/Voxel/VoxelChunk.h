@@ -7,6 +7,7 @@
 #include "VoxelChunk.generated.h"
 
 class UDynamicMeshComponent;
+class UVoxelMeshComponent;
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class VOXELWORLD_API UVoxelChunk : public USceneComponent
@@ -32,10 +33,10 @@ public:
 	void Build(ChunkSettingInfo& _chunkSettingInfo);
 	void UpdateMesh();
 
-	void Sculpt();
+	void ApplyBrush(FVector& HitLocation);
 	
 	UPROPERTY()
-	UDynamicMeshComponent* MeshComponent;
+	UVoxelMeshComponent* MeshComponent;
 	UPROPERTY()
 	TArray<FVertexDensity> VertexDensityData;
 

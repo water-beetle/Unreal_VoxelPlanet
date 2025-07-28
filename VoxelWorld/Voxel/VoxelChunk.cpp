@@ -2,6 +2,8 @@
 
 
 #include "VoxelChunk.h"
+
+#include "VoxelMeshComponent.h"
 #include "Components/DynamicMeshComponent.h"
 #include "DynamicMesh/MeshNormals.h"
 #include "VoxelWorld/MarchingCubes/MarchingCubeMeshGenerator.h"
@@ -54,7 +56,7 @@ void UVoxelChunk::Build(ChunkSettingInfo& _chunkSettingInfo)
 
 void UVoxelChunk::GenerateMeshComponent()
 {
-	MeshComponent = NewObject<UDynamicMeshComponent>(GetOwner());
+	MeshComponent = NewObject<UVoxelMeshComponent>(GetOwner());
 	MeshComponent->RegisterComponent();
 	MeshComponent->AttachToComponent(GetOwner()->GetRootComponent(),	FAttachmentTransformRules::KeepRelativeTransform);
 	MeshComponent->SetComplexAsSimpleCollisionEnabled(true, true);
@@ -64,6 +66,8 @@ void UVoxelChunk::GenerateMeshComponent()
 	MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 	MeshComponent->SetMobility(EComponentMobility::Movable);
 	MeshComponent->GetDynamicMesh()->Reset();
+
+	MeshComponent->OwningChunk = this;
 }
 
 void UVoxelChunk::UpdateMesh()
@@ -98,17 +102,13 @@ void UVoxelChunk::UpdateMesh()
 	MeshComponent->NotifyMeshUpdated();
 }
 
-void UVoxelChunk::Sculpt()
+void UVoxelChunk::ApplyBrush(FVector& HitLocation)
 {
 	// Sculpt
 
-	UpdateMesh();
-}
-
-void UVoxelChunk::CalculateVertexDensity()
-{
-	VertexDensityData.SetNum((chunkSettingInfo.CellCount+1) * (chunkSettingInfo.CellCount+1) * (chunkSettingInfo.CellCount+1));
-
+	if (chunkSettingInfo.CellCount == 0)
+		return;
+	
 	const float ChunkSize = chunkSettingInfo.CellSize * chunkSettingInfo.CellCount;
 	const float VoxelSize = ChunkSize * chunkSettingInfo.ChunkCount;
 	const FVector ChunkPos = (chunkSettingInfo.ChunkIndex + 0.5f) * ChunkSize - FVector(VoxelSize * 0.5f);
@@ -120,10 +120,51 @@ void UVoxelChunk::CalculateVertexDensity()
 			for (int x=0; x < chunkSettingInfo.CellCount + 1; x += 1)
 			{
 				FVector Pos = FVector(x, y, z) * chunkSettingInfo.CellSize - FVector(ChunkSize) * 0.5f + ChunkPos;
+				FVector BrushPos = HitLocation - ChunkPos;
+
+				VertexDensityData[GetIndex(x,y,z, chunkSettingInfo.CellCount)].Density =
+					FMath::Min(VertexDensityData[GetIndex(x,y,z, chunkSettingInfo.CellCount)].Density,
+						  FVector::Dist(Pos, BrushPos) - 5);
+			}
+		}
+	}
+	
+	UpdateMesh();
+}
+
+void UVoxelChunk::CalculateVertexDensity()
+{
+	VertexDensityData.SetNum((chunkSettingInfo.CellCount+1) * (chunkSettingInfo.CellCount+1) * (chunkSettingInfo.CellCount+1));
+
+	const float ChunkSize = chunkSettingInfo.CellSize * chunkSettingInfo.CellCount;
+	const float VoxelSize = ChunkSize * chunkSettingInfo.ChunkCount;
+	const FVector ChunkPos = (chunkSettingInfo.ChunkIndex + 0.5f) * ChunkSize - FVector(VoxelSize * 0.5f);
+
+	for (int z=0; z < chunkSettingInfo.CellCount + 1; z += 1)
+	{
+		for (int y=0; y < chunkSettingInfo.CellCount + 1; y += 1)
+		{
+			for (int x=0; x < chunkSettingInfo.CellCount + 1; x += 1)
+			{
+				FVector Pos = FVector(x, y, z) * chunkSettingInfo.CellSize - FVector(ChunkSize) * 0.5f + ChunkPos;
 				VertexDensityData[GetIndex(x,y,z,chunkSettingInfo.CellCount)].Density = SampleDensity(Pos, VoxelSize * 0.3f);
 			}
 		}
 	}
+	const int CellDim = chunkSettingInfo.CellCount + 1;
+
+	// 병렬처리가 더 시간 오래걸림...
+	// ParallelFor(CellDim, [&](int32 z)
+	// {
+	// 	for (int y = 0; y < CellDim; y++)
+	// 	{
+	// 		for (int x = 0; x < CellDim; x++)
+	// 		{
+	// 			FVector Pos = FVector(x, y, z) * chunkSettingInfo.CellSize - FVector(ChunkSize) * 0.5f + ChunkPos;
+	// 			VertexDensityData[GetIndex(x, y, z, chunkSettingInfo.CellCount)].Density = SampleDensity(Pos, VoxelSize * 0.3f);
+	// 		}
+	// 	}
+	// });
 }
 
 float UVoxelChunk::SampleDensity(const FVector& Pos, int Radius)

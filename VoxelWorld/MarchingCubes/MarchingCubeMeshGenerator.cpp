@@ -1,5 +1,4 @@
 #include "MarchingCubeMeshGenerator.h"
-
 #include "MarchingCubeLookupTable.h"
 #include "VoxelWorld/Voxel/VoxelStructs.h"
 
@@ -23,12 +22,12 @@ FVoxelMeshData MarchingCubeMeshGenerator::GenerateMesh(ChunkSettingInfo& chunkSe
 	if (chunkSettingInfo.LOD <= 0)
 		chunkSettingInfo.LOD = 1;
 	
-	const int CellsPerAxis = FMath::CeilToInt(static_cast<float>(chunkSettingInfo.CellCount) / chunkSettingInfo.LOD);
-	const int EstimatedCubeCount = CellsPerAxis * CellsPerAxis * CellsPerAxis;
-	constexpr int MaxVertsPerCube = 15;
-	VoxelMeshData.Vertices.Reserve(EstimatedCubeCount * MaxVertsPerCube);
-	VoxelMeshData.Normals.Reserve(EstimatedCubeCount * MaxVertsPerCube);
-	VoxelMeshData.Triangles.Reserve(EstimatedCubeCount * MaxVertsPerCube);
+	// const int CellsPerAxis = FMath::CeilToInt(static_cast<float>(chunkSettingInfo.CellCount) / chunkSettingInfo.LOD);
+	// const int EstimatedCubeCount = CellsPerAxis * CellsPerAxis * CellsPerAxis;
+	// constexpr int MaxVertsPerCube = 15;
+	// VoxelMeshData.Vertices.Reserve(EstimatedCubeCount * MaxVertsPerCube);
+	// VoxelMeshData.Normals.Reserve(EstimatedCubeCount * MaxVertsPerCube);
+	// VoxelMeshData.Triangles.Reserve(EstimatedCubeCount * MaxVertsPerCube);
 	
 	for (int z=0; z < chunkSettingInfo.CellCount; z += chunkSettingInfo.LOD)
 	{
