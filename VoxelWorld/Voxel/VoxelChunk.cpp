@@ -113,18 +113,20 @@ void UVoxelChunk::ApplyBrush(FVector& HitLocation)
 	const float VoxelSize = ChunkSize * chunkSettingInfo.ChunkCount;
 	const FVector ChunkPos = (chunkSettingInfo.ChunkIndex + 0.5f) * ChunkSize - FVector(VoxelSize * 0.5f);
 	
-	for (int z=0; z < chunkSettingInfo.CellCount + 1; z += 1)
+	for (int z=0; z < chunkSettingInfo.CellCount; z += chunkSettingInfo.LOD)
 	{
-		for (int y=0; y < chunkSettingInfo.CellCount + 1; y += 1)
+		for (int y=0; y < chunkSettingInfo.CellCount; y += chunkSettingInfo.LOD)
 		{
-			for (int x=0; x < chunkSettingInfo.CellCount + 1; x += 1)
+			for (int x=0; x < chunkSettingInfo.CellCount; x += chunkSettingInfo.LOD)
 			{
 				FVector Pos = FVector(x, y, z) * chunkSettingInfo.CellSize - FVector(ChunkSize) * 0.5f + ChunkPos;
-				FVector BrushPos = HitLocation - ChunkPos;
+				FVector BrushPos = HitLocation - GetOwner()->GetActorLocation();
 
+				float BrushDensity = FVector::Dist(Pos, BrushPos) - 5;
+				
 				VertexDensityData[GetIndex(x,y,z, chunkSettingInfo.CellCount)].Density =
 					FMath::Min(VertexDensityData[GetIndex(x,y,z, chunkSettingInfo.CellCount)].Density,
-						  FVector::Dist(Pos, BrushPos) - 5);
+						  BrushDensity);
 			}
 		}
 	}
