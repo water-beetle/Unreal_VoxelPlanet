@@ -16,9 +16,6 @@ FVoxelMeshData MarchingCubeMeshGenerator::GenerateMesh(ChunkSettingInfo& chunkSe
 	const float ChunkSize = chunkSettingInfo.CellSize * chunkSettingInfo.CellCount;
 	const float VoxelSize = ChunkSize * chunkSettingInfo.ChunkCount;
 
-	// 현재 Chunk의 중심 좌표 -> Voxel 중심을 원점으로 이동 후, Chunk 중심좌표 계산
-	const FVector ChunkPos = (chunkSettingInfo.ChunkIndex + 0.5f) * ChunkSize - FVector(VoxelSize * 0.5f);
-
 	if (chunkSettingInfo.LOD <= 0)
 		chunkSettingInfo.LOD = 1;
 	
@@ -44,7 +41,7 @@ FVoxelMeshData MarchingCubeMeshGenerator::GenerateMesh(ChunkSettingInfo& chunkSe
 					CubeCornerDensity[i] = VertexDensityData[GetIndex(
 						CubeCorner[i].X,CubeCorner[i].Y,CubeCorner[i].Z,chunkSettingInfo.CellCount)].Density;
 					// 중심을 원점으로 이동 후, ChunkIndex 만큼 이동시키기
-					CubeCorner[i] = CubeCorner[i] * chunkSettingInfo.CellSize - FVector(ChunkSize) * 0.5f + ChunkPos; 
+					CubeCorner[i] = CubeCorner[i] * chunkSettingInfo.CellSize - FVector(ChunkSize) * 0.5f; 
 				}
 
 				int cubeIndex = 0;

@@ -40,7 +40,7 @@ void ATestingController::PlayerTick(float DeltaTime)
 				}
 			}
 		}
-		DrawDebugSphere(GetWorld(), HitLocation, 10.f, 12, FColor::Green, false, 0.05f);
+		DrawDebugSphere(GetWorld(), HitLocation, 5.f, 12, FColor::Green, false, 0.05f);
 	}
 }
 

@@ -1,8 +1,6 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "VoxelChunk.h"
-
 #include "VoxelMeshComponent.h"
 #include "Components/DynamicMeshComponent.h"
 #include "DynamicMesh/MeshNormals.h"
@@ -66,8 +64,14 @@ void UVoxelChunk::GenerateMeshComponent()
 	MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 	MeshComponent->SetMobility(EComponentMobility::Movable);
 	MeshComponent->GetDynamicMesh()->Reset();
-
 	MeshComponent->OwningChunk = this;
+
+	const float ChunkSize = chunkSettingInfo.CellSize * chunkSettingInfo.CellCount;
+	const float VoxelSize = ChunkSize * chunkSettingInfo.ChunkCount;
+	const FVector ChunkPos = (chunkSettingInfo.ChunkIndex + 0.5f) * ChunkSize - FVector(VoxelSize * 0.5f);
+
+	// Chunk의 위치를 월드 좌표계에서 이동
+	MeshComponent->SetRelativeLocation(ChunkPos);
 }
 
 void UVoxelChunk::UpdateMesh()
