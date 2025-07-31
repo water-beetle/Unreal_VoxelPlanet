@@ -70,7 +70,7 @@ void UVoxelChunk::GenerateMeshComponent()
 
 	const float ChunkSize = chunkSettingInfo.CellSize * chunkSettingInfo.CellCount;
 	const float VoxelSize = ChunkSize * chunkSettingInfo.ChunkCount;
-	const FVector ChunkPos = (chunkSettingInfo.ChunkIndex + 0.5f) * ChunkSize - FVector(VoxelSize * 0.5f);
+	const FVector ChunkPos = (FVector(chunkSettingInfo.ChunkIndex) + 0.5f) * ChunkSize - FVector(VoxelSize * 0.5f);
 
 	// Chunk의 위치를 월드 좌표계에서 이동
 	MeshComponent->SetRelativeLocation(ChunkPos);
@@ -117,7 +117,7 @@ void UVoxelChunk::ApplyBrush(const FVector& HitLocation)
 
 	const float ChunkSize = chunkSettingInfo.CellSize * chunkSettingInfo.CellCount;
 	const float VoxelSize = ChunkSize * chunkSettingInfo.ChunkCount;
-	const FVector ChunkPos = (chunkSettingInfo.ChunkIndex + 0.5f) * ChunkSize - FVector(VoxelSize * 0.5f);
+	const FVector ChunkPos = (FVector(chunkSettingInfo.ChunkIndex) + 0.5f) * ChunkSize - FVector(VoxelSize * 0.5f);
 	const FVector LocalPos = HitLocation - GetOwner()->GetActorLocation();
 
 	FVector ChunkMin = ChunkPos - FVector(ChunkSize) * 0.5f;
@@ -178,7 +178,7 @@ void UVoxelChunk::ApplyBrushInternal(const FVector& HitLocation)
 	
 	const float ChunkSize = chunkSettingInfo.CellSize * chunkSettingInfo.CellCount;
 	const float VoxelSize = ChunkSize * chunkSettingInfo.ChunkCount;
-	const FVector ChunkPos = (chunkSettingInfo.ChunkIndex + 0.5f) * ChunkSize - FVector(VoxelSize * 0.5f);
+	const FVector ChunkPos = (FVector(chunkSettingInfo.ChunkIndex) + 0.5f) * ChunkSize - FVector(VoxelSize * 0.5f);
 	
 	for (int z=0; z <= chunkSettingInfo.CellCount; z += chunkSettingInfo.LOD)
 	{
@@ -207,8 +207,8 @@ void UVoxelChunk::CalculateVertexDensity()
 
 	const float ChunkSize = chunkSettingInfo.CellSize * chunkSettingInfo.CellCount;
 	const float VoxelSize = ChunkSize * chunkSettingInfo.ChunkCount;
-	const FVector ChunkPos = (chunkSettingInfo.ChunkIndex + 0.5f) * ChunkSize - FVector(VoxelSize * 0.5f);
-
+	const FVector ChunkPos = (FVector(chunkSettingInfo.ChunkIndex) + 0.5f) * ChunkSize - FVector(VoxelSize * 0.5f);
+	
 	for (int z=0; z < chunkSettingInfo.CellCount + 1; z += 1)
 	{
 		for (int y=0; y < chunkSettingInfo.CellCount + 1; y += 1)

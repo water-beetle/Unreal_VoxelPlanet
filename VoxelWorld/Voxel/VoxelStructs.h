@@ -11,7 +11,7 @@ struct FVoxelMeshData
 
 struct ChunkSettingInfo
 {
-	FVector ChunkIndex;
+	FIntVector ChunkIndex;
 	int CellSize;
 	int CellCount;
 	int ChunkCount;

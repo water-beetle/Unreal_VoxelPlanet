@@ -32,7 +32,7 @@ void AVoxelManager::BeginPlay()
 				Chunk->RegisterComponent();
 				Chunk->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
 				
-				ChunkSettingInfo ChunkInfo{FVector(x,y,z), CellSize, CellCount, ChunkCount, 1};
+				ChunkSettingInfo ChunkInfo{FIntVector (x,y,z), CellSize, CellCount, ChunkCount, 1};
 				Chunk->Build(ChunkInfo);
 				Chunk->SetVoxelManager(this);
 				RegisterChunk(FIntVector(x,y,z), Chunk);
