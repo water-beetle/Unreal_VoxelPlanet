@@ -124,18 +124,38 @@ void UVoxelChunk::ApplyBrush(const FVector& HitLocation)
 	FVector ChunkMax = ChunkPos + FVector(ChunkSize) * 0.5f;
 
 	TArray<FIntVector> Offsets;
-	if (LocalPos.X - ChunkMin.X < BrushRadius)
-		Offsets.Add(FIntVector(-1,0,0));
-	if (ChunkMax.X - LocalPos.X < BrushRadius)
-		Offsets.Add(FIntVector(1,0,0));
-	if (LocalPos.Y - ChunkMin.Y < BrushRadius)
-		Offsets.Add(FIntVector(0,-1,0));
-	if (ChunkMax.Y - LocalPos.Y < BrushRadius)
-		Offsets.Add(FIntVector(0,1,0));
-	if (LocalPos.Z - ChunkMin.Z < BrushRadius)
-		Offsets.Add(FIntVector(0,0,-1));
-	if (ChunkMax.Z - LocalPos.Z < BrushRadius)
-		Offsets.Add(FIntVector(0,0,1));
+
+	const bool NearMinX = LocalPos.X - ChunkMin.X < BrushRadius;
+	const bool NearMaxX = ChunkMax.X - LocalPos.X < BrushRadius;
+	const bool NearMinY = LocalPos.Y - ChunkMin.Y < BrushRadius;
+	const bool NearMaxY = ChunkMax.Y - LocalPos.Y < BrushRadius;
+	const bool NearMinZ = LocalPos.Z - ChunkMin.Z < BrushRadius;
+	const bool NearMaxZ = ChunkMax.Z - LocalPos.Z < BrushRadius;
+
+	for (int32 dx = -1; dx <= 1; ++dx)
+	{
+		for (int32 dy = -1; dy <= 1; ++dy)
+		{
+			for (int32 dz = -1; dz <= 1; ++dz)
+			{
+				if (dx == 0 && dy == 0 && dz == 0)
+					continue;
+
+				bool bValid = true;
+				if (dx == -1) bValid &= NearMinX;
+				if (dx == 1)  bValid &= NearMaxX;
+				if (dy == -1) bValid &= NearMinY;
+				if (dy == 1)  bValid &= NearMaxY;
+				if (dz == -1) bValid &= NearMinZ;
+				if (dz == 1)  bValid &= NearMaxZ;
+
+				if (bValid)
+				{
+					Offsets.Add(FIntVector(dx, dy, dz));
+				}
+			}
+		}
+	}
 
 	for (const FIntVector& Offset : Offsets)
 	{
