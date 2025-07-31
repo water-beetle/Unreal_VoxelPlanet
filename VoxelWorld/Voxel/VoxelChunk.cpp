@@ -125,12 +125,14 @@ void UVoxelChunk::ApplyBrush(const FVector& HitLocation)
 
 	TArray<FIntVector> Offsets;
 
-	const bool NearMinX = LocalPos.X - ChunkMin.X < BrushRadius;
-	const bool NearMaxX = ChunkMax.X - LocalPos.X < BrushRadius;
-	const bool NearMinY = LocalPos.Y - ChunkMin.Y < BrushRadius;
-	const bool NearMaxY = ChunkMax.Y - LocalPos.Y < BrushRadius;
-	const bool NearMinZ = LocalPos.Z - ChunkMin.Z < BrushRadius;
-	const bool NearMaxZ = ChunkMax.Z - LocalPos.Z < BrushRadius;
+	const float EffectiveRadius = BrushRadius + chunkSettingInfo.CellSize;
+
+	const bool NearMinX = LocalPos.X - ChunkMin.X <= EffectiveRadius;
+	const bool NearMaxX = ChunkMax.X - LocalPos.X <= EffectiveRadius;
+	const bool NearMinY = LocalPos.Y - ChunkMin.Y <= EffectiveRadius;
+	const bool NearMaxY = ChunkMax.Y - LocalPos.Y <= EffectiveRadius;
+	const bool NearMinZ = LocalPos.Z - ChunkMin.Z <= EffectiveRadius;
+	const bool NearMaxZ = ChunkMax.Z - LocalPos.Z <= EffectiveRadius;
 
 	for (int32 dx = -1; dx <= 1; ++dx)
 	{
