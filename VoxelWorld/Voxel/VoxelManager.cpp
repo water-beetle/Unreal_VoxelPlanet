@@ -33,7 +33,9 @@ void AVoxelManager::BeginPlay()
 				Chunk->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
 				
 				ChunkSettingInfo ChunkInfo{FVector(x,y,z), CellSize, CellCount, ChunkCount, 1};
-				Chunk->Build(ChunkInfo);	
+				Chunk->Build(ChunkInfo);
+				Chunk->SetVoxelManager(this);
+				RegisterChunk(FIntVector(x,y,z), Chunk);
 			}
 		}
 	}
@@ -46,5 +48,19 @@ void AVoxelManager::BeginPlay()
 void AVoxelManager::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+}
+
+void AVoxelManager::RegisterChunk(const FIntVector& Index, UVoxelChunk* Chunk)
+{
+	ChunkMap.Add(Index, Chunk);
+}
+
+UVoxelChunk* AVoxelManager::GetChunk(const FIntVector& Index)
+{
+	if (UVoxelChunk** Ptr = ChunkMap.Find(Index))
+	{
+		return *Ptr;
+	}
+	return nullptr;
 }
 

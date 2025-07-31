@@ -1,6 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "VoxelChunk.h"
+
+#include "VoxelManager.h"
 #include "VoxelMeshComponent.h"
 #include "Components/DynamicMeshComponent.h"
 #include "DynamicMesh/MeshNormals.h"
@@ -13,7 +15,7 @@ UVoxelChunk::UVoxelChunk()
 {
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
-	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bCanEverTick = false;
 }
 
 
@@ -106,7 +108,48 @@ void UVoxelChunk::UpdateMesh()
 	MeshComponent->NotifyMeshUpdated();
 }
 
-void UVoxelChunk::ApplyBrush(FVector& HitLocation)
+void UVoxelChunk::ApplyBrush(const FVector& HitLocation)
+{
+	ApplyBrushInternal(HitLocation);
+
+	if (!OwningManager)
+		return;
+
+	const float ChunkSize = chunkSettingInfo.CellSize * chunkSettingInfo.CellCount;
+	const float VoxelSize = ChunkSize * chunkSettingInfo.ChunkCount;
+	const FVector ChunkPos = (chunkSettingInfo.ChunkIndex + 0.5f) * ChunkSize - FVector(VoxelSize * 0.5f);
+	const FVector LocalPos = HitLocation - GetOwner()->GetActorLocation();
+
+	FVector ChunkMin = ChunkPos - FVector(ChunkSize) * 0.5f;
+	FVector ChunkMax = ChunkPos + FVector(ChunkSize) * 0.5f;
+
+	TArray<FIntVector> Offsets;
+	if (LocalPos.X - ChunkMin.X < BrushRadius)
+		Offsets.Add(FIntVector(-1,0,0));
+	if (ChunkMax.X - LocalPos.X < BrushRadius)
+		Offsets.Add(FIntVector(1,0,0));
+	if (LocalPos.Y - ChunkMin.Y < BrushRadius)
+		Offsets.Add(FIntVector(0,-1,0));
+	if (ChunkMax.Y - LocalPos.Y < BrushRadius)
+		Offsets.Add(FIntVector(0,1,0));
+	if (LocalPos.Z - ChunkMin.Z < BrushRadius)
+		Offsets.Add(FIntVector(0,0,-1));
+	if (ChunkMax.Z - LocalPos.Z < BrushRadius)
+		Offsets.Add(FIntVector(0,0,1));
+
+	for (const FIntVector& Offset : Offsets)
+	{
+		FIntVector NeighborIndex = FIntVector(chunkSettingInfo.ChunkIndex.X + Offset.X,
+											 chunkSettingInfo.ChunkIndex.Y + Offset.Y,
+											 chunkSettingInfo.ChunkIndex.Z + Offset.Z);
+		if (UVoxelChunk* Neighbor = OwningManager->GetChunk(NeighborIndex))
+		{
+			Neighbor->ApplyBrushInternal(HitLocation);
+		}
+	}
+}
+
+void UVoxelChunk::ApplyBrushInternal(const FVector& HitLocation)
 {
 	// Sculpt
 
@@ -117,16 +160,16 @@ void UVoxelChunk::ApplyBrush(FVector& HitLocation)
 	const float VoxelSize = ChunkSize * chunkSettingInfo.ChunkCount;
 	const FVector ChunkPos = (chunkSettingInfo.ChunkIndex + 0.5f) * ChunkSize - FVector(VoxelSize * 0.5f);
 	
-	for (int z=0; z < chunkSettingInfo.CellCount; z += chunkSettingInfo.LOD)
+	for (int z=0; z <= chunkSettingInfo.CellCount; z += chunkSettingInfo.LOD)
 	{
-		for (int y=0; y < chunkSettingInfo.CellCount; y += chunkSettingInfo.LOD)
+		for (int y=0; y <= chunkSettingInfo.CellCount; y += chunkSettingInfo.LOD)
 		{
-			for (int x=0; x < chunkSettingInfo.CellCount; x += chunkSettingInfo.LOD)
+			for (int x=0; x <= chunkSettingInfo.CellCount; x += chunkSettingInfo.LOD)
 			{
 				FVector Pos = FVector(x, y, z) * chunkSettingInfo.CellSize - FVector(ChunkSize) * 0.5f + ChunkPos;
 				FVector BrushPos = HitLocation - GetOwner()->GetActorLocation();
 
-				float BrushDensity = FVector::Dist(Pos, BrushPos) - 5;
+				float BrushDensity = FVector::Dist(Pos, BrushPos) - BrushRadius;
 				
 				VertexDensityData[GetIndex(x,y,z, chunkSettingInfo.CellCount)].Density =
 					FMath::Min(VertexDensityData[GetIndex(x,y,z, chunkSettingInfo.CellCount)].Density,

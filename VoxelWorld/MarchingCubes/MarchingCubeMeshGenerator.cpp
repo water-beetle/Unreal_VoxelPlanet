@@ -9,7 +9,7 @@ static const int EdgeCorners[12][2] =
     {0, 4}, {1, 5}, {2, 6}, {3, 7}
 };
 
-FVoxelMeshData MarchingCubeMeshGenerator::GenerateMesh(ChunkSettingInfo& chunkSettingInfo, TArray<FVertexDensity> VertexDensityData)
+FVoxelMeshData MarchingCubeMeshGenerator::GenerateMesh(ChunkSettingInfo& chunkSettingInfo, const TArray<FVertexDensity>& VertexDensityData)
 {
 	FVoxelMeshData VoxelMeshData;
 	

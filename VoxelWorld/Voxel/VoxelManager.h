@@ -3,8 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
 #include "VoxelManager.generated.h"
+
+class UVoxelChunk;
 
 UCLASS()
 class VOXELWORLD_API AVoxelManager : public AActor
@@ -24,13 +25,18 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 public:
+	void RegisterChunk(const FIntVector& Index, UVoxelChunk* Chunk);
+	UVoxelChunk* GetChunk(const FIntVector& Index);
+	
 	UPROPERTY(EditAnywhere)
 	int CellSize;
 	UPROPERTY(EditAnywhere)
 	int CellCount;
 	UPROPERTY(EditAnywhere)
 	int ChunkCount;
-
 	int LOD;
+
+private:
+	TMap<FIntVector, UVoxelChunk*> ChunkMap;
 	
 };
