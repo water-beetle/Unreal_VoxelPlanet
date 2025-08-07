@@ -39,10 +39,13 @@ void UVoxelChunk::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 
 
 
-void UVoxelChunk::Build(ChunkSettingInfo& _chunkSettingInfo)
+void UVoxelChunk::Build(const ChunkSettingInfo& InSettings)
 {
 	// 클래스 변수 값 업데이트
-	chunkSettingInfo = _chunkSettingInfo;
+	chunkSettingInfo = InSettings;
+	ChunkSize = chunkSettingInfo.CellSize * chunkSettingInfo.CellCount;
+	VoxelSize = ChunkSize * chunkSettingInfo.ChunkCount;
+	ChunkPos = (FVector(chunkSettingInfo.ChunkIndex) + 0.5f) * ChunkSize - FVector(VoxelSize * 0.5f);
 
 	// Marching Cube에서 사용할 vertex의 desntiy 값 초기화
 	CalculateVertexDensity();
@@ -51,7 +54,8 @@ void UVoxelChunk::Build(ChunkSettingInfo& _chunkSettingInfo)
 	GenerateMeshComponent();
 
 	// Marching Cube를 사용한 Mesh 업데이트
-	UpdateMesh();
+	CachedMeshData = MarchingCubeMeshGenerator::GenerateMesh(chunkSettingInfo, VertexDensityData);
+	UpdateMesh(CachedMeshData);
 }
 
 void UVoxelChunk::GenerateMeshComponent()
@@ -67,45 +71,69 @@ void UVoxelChunk::GenerateMeshComponent()
 	MeshComponent->SetMobility(EComponentMobility::Movable);
 	MeshComponent->GetDynamicMesh()->Reset();
 	MeshComponent->OwningChunk = this;
-
-	const float ChunkSize = chunkSettingInfo.CellSize * chunkSettingInfo.CellCount;
-	const float VoxelSize = ChunkSize * chunkSettingInfo.ChunkCount;
-	const FVector ChunkPos = (FVector(chunkSettingInfo.ChunkIndex) + 0.5f) * ChunkSize - FVector(VoxelSize * 0.5f);
-
+	
 	// Chunk의 위치를 월드 좌표계에서 이동
 	MeshComponent->SetRelativeLocation(ChunkPos);
 }
 
-void UVoxelChunk::UpdateMesh()
+void UVoxelChunk::UpdateMesh(const FVoxelMeshData& VoxelMeshData)
 {
-	if (VertexDensityData.Num() != (chunkSettingInfo.CellCount+1) * (chunkSettingInfo.CellCount+1) * (chunkSettingInfo.CellCount+1))
-		return;
-	
-	FVoxelMeshData VoxelMeshData = MarchingCubeMeshGenerator::GenerateMesh(chunkSettingInfo, VertexDensityData);
-	
-	FDynamicMesh3 Mesh;
-	Mesh.EnableVertexNormals(FVector3f());
-	TArray<int32> VIDs;
-	
-	for (int i = 0; i < VoxelMeshData.Vertices.Num(); i++)
+	MeshComponent->GetDynamicMesh()->EditMesh([&](FDynamicMesh3& EditMesh)
 	{
-		int32 ID = Mesh.AppendVertex(VoxelMeshData.Vertices[i]);
-		VIDs.Add(ID);
-		//Mesh.SetVertexNormal(ID, FVector3f(VoxelMeshData.Normals[i]));
-	}
+		EditMesh.Clear(); // 필요 시 기존 데이터 초기화
+		EditMesh.EnableVertexNormals(FVector3f());
 
-	for (int i = 0; i < VoxelMeshData.Triangles.Num(); i += 3)
-	{
-		const int T0 = VIDs[VoxelMeshData.Triangles[i]];
-		const int T1 = VIDs[VoxelMeshData.Triangles[i + 1]];
-		const int T2 = VIDs[VoxelMeshData.Triangles[i + 2]];
-		Mesh.AppendTriangle(T0, T1, T2);
-	}
+		Mappings.VertexToTriangles.SetNum(VoxelMeshData.Vertices.Num());
+		
+		TArray<int32> VIDs;
+		VIDs.Reserve(VoxelMeshData.Vertices.Num());
 
-	FMeshNormals::QuickComputeVertexNormals(Mesh);
-	// 메시 적용
-	MeshComponent->GetDynamicMesh()->SetMesh(MoveTemp(Mesh));
+		// 정점 추가
+		for (int i = 0; i < VoxelMeshData.Vertices.Num(); i++)
+		{
+			int32 ID = EditMesh.AppendVertex(VoxelMeshData.Vertices[i]);
+			VIDs.Add(ID);
+		}
+
+		// 삼각형 추가
+		for (int i = 0; i < VoxelMeshData.Triangles.Num(); i += 3)
+		{
+			int32 T0 = VIDs[VoxelMeshData.Triangles[i]];
+			int32 T1 = VIDs[VoxelMeshData.Triangles[i + 1]];
+			int32 T2 = VIDs[VoxelMeshData.Triangles[i + 2]];
+
+			int32 TriID = EditMesh.AppendTriangle(T0, T1, T2);
+
+			Mappings.VertexToTriangles[T0].Add(TriID);
+			Mappings.VertexToTriangles[T1].Add(TriID);
+			Mappings.VertexToTriangles[T2].Add(TriID);
+
+			FIntVector Cell = GetCellFromTriangle(EditMesh, T0, T1, T2);
+			Mappings.CellToTriangles.FindOrAdd(Cell).Add(TriID);
+			Mappings.CellToVertices.FindOrAdd(Cell).AddUnique(T0);
+			Mappings.CellToVertices[Cell].AddUnique(T1);
+			Mappings.CellToVertices[Cell].AddUnique(T2);
+		}
+
+		// 노멀 재계산
+		FMeshNormals::QuickComputeVertexNormals(EditMesh);
+	});
 	MeshComponent->NotifyMeshUpdated();
+}
+
+// 삼각형이 Chunk내 어떤 셀에 들어 있는지 계산하는 함수
+FIntVector UVoxelChunk::GetCellFromTriangle(const FDynamicMesh3& Mesh, int32 V0, int32 V1, int32 V2) const
+{
+	FVector3f P0 = static_cast<FVector3f>(Mesh.GetVertex(V0));
+	FVector3f P1 = static_cast<FVector3f>(Mesh.GetVertex(V1));
+	FVector3f P2 = static_cast<FVector3f>(Mesh.GetVertex(V2));
+	FVector3f Center = (P0 + P1 + P2) / 3.0f;
+
+	// cell 좌측 하단(최소점) 기준이 원점이 되도록 좌표계 변환 후 Index 계산
+	int cx = FMath::FloorToInt((Center.X + (chunkSettingInfo.CellSize * chunkSettingInfo.CellCount * 0.5f)) / chunkSettingInfo.CellSize);
+	int cy = FMath::FloorToInt((Center.Y + (chunkSettingInfo.CellSize * chunkSettingInfo.CellCount * 0.5f)) / chunkSettingInfo.CellSize);
+	int cz = FMath::FloorToInt((Center.Z + (chunkSettingInfo.CellSize * chunkSettingInfo.CellCount * 0.5f)) / chunkSettingInfo.CellSize);
+	return FIntVector(cx, cy, cz);
 }
 
 void UVoxelChunk::ApplyBrush(const FVector& HitLocation)
@@ -114,10 +142,7 @@ void UVoxelChunk::ApplyBrush(const FVector& HitLocation)
 
 	if (!OwningManager)
 		return;
-
-	const float ChunkSize = chunkSettingInfo.CellSize * chunkSettingInfo.CellCount;
-	const float VoxelSize = ChunkSize * chunkSettingInfo.ChunkCount;
-	const FVector ChunkPos = (FVector(chunkSettingInfo.ChunkIndex) + 0.5f) * ChunkSize - FVector(VoxelSize * 0.5f);
+	
 	const FVector LocalPos = HitLocation - GetOwner()->GetActorLocation();
 
 	FVector ChunkMin = ChunkPos - FVector(ChunkSize) * 0.5f;
@@ -173,43 +198,149 @@ void UVoxelChunk::ApplyBrush(const FVector& HitLocation)
 
 void UVoxelChunk::ApplyBrushInternal(const FVector& HitLocation)
 {
-	// Sculpt
+	TSet<FIntVector> ModifiedCells;
 
-	if (chunkSettingInfo.CellCount == 0)
-		return;
-	
-	const float ChunkSize = chunkSettingInfo.CellSize * chunkSettingInfo.CellCount;
-	const float VoxelSize = ChunkSize * chunkSettingInfo.ChunkCount;
-	const FVector ChunkPos = (FVector(chunkSettingInfo.ChunkIndex) + 0.5f) * ChunkSize - FVector(VoxelSize * 0.5f);
-	
-	for (int z=0; z <= chunkSettingInfo.CellCount; z += chunkSettingInfo.LOD)
+	// 모든 정점 업데이트 (<= CellCount)
+	for (int z = 0; z <= chunkSettingInfo.CellCount; z++)
 	{
-		for (int y=0; y <= chunkSettingInfo.CellCount; y += chunkSettingInfo.LOD)
+		for (int y = 0; y <= chunkSettingInfo.CellCount; y++)
 		{
-			for (int x=0; x <= chunkSettingInfo.CellCount; x += chunkSettingInfo.LOD)
+			for (int x = 0; x <= chunkSettingInfo.CellCount; x++)
 			{
 				FVector Pos = FVector(x, y, z) * chunkSettingInfo.CellSize - FVector(ChunkSize) * 0.5f + ChunkPos;
 				FVector BrushPos = HitLocation - GetOwner()->GetActorLocation();
-
 				float BrushDensity = FVector::Dist(Pos, BrushPos) - BrushRadius;
-				
-				VertexDensityData[GetIndex(x,y,z, chunkSettingInfo.CellCount)].Density =
-					FMath::Min(VertexDensityData[GetIndex(x,y,z, chunkSettingInfo.CellCount)].Density,
-						  BrushDensity);
+
+				int Index = GetIndex(x, y, z, chunkSettingInfo.CellCount);
+				if (BrushDensity < VertexDensityData[Index].Density)
+				{
+					VertexDensityData[Index].Density = BrushDensity;
+
+					// 셀 인덱스 범위 안이면 ModifiedCells에 추가
+					if (x < chunkSettingInfo.CellCount && 
+						y < chunkSettingInfo.CellCount && 
+						z < chunkSettingInfo.CellCount)
+					{
+						ModifiedCells.Add(FIntVector(x, y, z));
+					}
+				}
 			}
 		}
 	}
-	
-	UpdateMesh();
+
+	UpdateMeshPartialCells(ModifiedCells);
+
+	// if (!IsNearCamera())
+	// 	UnloadMappings();
+}
+
+void UVoxelChunk::UpdateMeshPartialCells(const TSet<FIntVector>& ModifiedCells)
+{
+	 if (!MeshComponent) return;
+
+    MeshComponent->GetDynamicMesh()->EditMesh([&](FDynamicMesh3& EditMesh)
+    {
+        auto FindOrAddVertex = [&](const FVector& Pos, const FIntVector& Cell) -> int32
+        {
+            // 주변 27셀 탐색 (자기 자신 포함)
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dy = -1; dy <= 1; dy++)
+                {
+                    for (int dz = -1; dz <= 1; dz++)
+                    {
+                        FIntVector NeighborCell = Cell + FIntVector(dx, dy, dz);
+                        if (Mappings.CellToVertices.Contains(NeighborCell))
+                        {
+                            for (int32 VID : Mappings.CellToVertices[NeighborCell])
+                            {
+                                if (EditMesh.GetVertex(VID).Equals((FVector3d)Pos, 0.0001))
+                                {
+                                    return VID; // 이미 존재 → 재사용
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 없으면 새로 생성
+            int32 VID = EditMesh.AppendVertex(FVector3d(Pos));
+            if (VID >= Mappings.VertexToTriangles.Num())
+                Mappings.VertexToTriangles.SetNum(VID + 1);
+            return VID;
+        };
+
+        for (const FIntVector& Cell : ModifiedCells)
+        {
+            // 1. 범위 체크
+            if (Cell.X < 0 || Cell.Y < 0 || Cell.Z < 0 ||
+                Cell.X >= chunkSettingInfo.CellCount ||
+                Cell.Y >= chunkSettingInfo.CellCount ||
+                Cell.Z >= chunkSettingInfo.CellCount)
+            {
+                continue;
+            }
+
+            // 2. 기존 삼각형만 제거
+            if (Mappings.CellToTriangles.Contains(Cell))
+            {
+                for (int32 TriID : Mappings.CellToTriangles[Cell])
+                {
+                    if (EditMesh.IsTriangle(TriID))
+                        EditMesh.RemoveTriangle(TriID, false, false);
+                }
+                Mappings.CellToTriangles[Cell].Reset();
+            }
+
+            // 3. 기존 버텍스 매핑만 초기화
+            if (Mappings.CellToVertices.Contains(Cell))
+            {
+                Mappings.CellToVertices[Cell].Reset();
+            }
+
+            // 4. 새로운 셀 메쉬 생성
+            FVoxelMeshData CellMesh = MarchingCubeMeshGenerator::GenerateCellMesh(
+                chunkSettingInfo, VertexDensityData, Cell);
+
+            if (CellMesh.Vertices.Num() == 0 || CellMesh.Triangles.Num() == 0)
+                continue;
+
+            // 5. 버텍스 추가 (재사용 로직 적용)
+            TArray<int32> VIDs;
+            VIDs.Reserve(CellMesh.Vertices.Num());
+
+            for (const FVector& V : CellMesh.Vertices)
+            {
+                int32 VID = FindOrAddVertex(V, Cell);
+                VIDs.Add(VID);
+                Mappings.CellToVertices.FindOrAdd(Cell).Add(VID);
+            }
+
+            // 6. 삼각형 추가
+            for (int i = 0; i < CellMesh.Triangles.Num(); i += 3)
+            {
+                int32 Idx0 = VIDs[CellMesh.Triangles[i]];
+                int32 Idx1 = VIDs[CellMesh.Triangles[i + 1]];
+                int32 Idx2 = VIDs[CellMesh.Triangles[i + 2]];
+
+                int32 TriID = EditMesh.AppendTriangle(Idx0, Idx1, Idx2);
+
+                Mappings.VertexToTriangles[Idx0].Add(TriID);
+                Mappings.VertexToTriangles[Idx1].Add(TriID);
+                Mappings.VertexToTriangles[Idx2].Add(TriID);
+
+                Mappings.CellToTriangles.FindOrAdd(Cell).Add(TriID);
+            }
+        }
+    });
+
+    MeshComponent->NotifyMeshUpdated();
 }
 
 void UVoxelChunk::CalculateVertexDensity()
 {
 	VertexDensityData.SetNum((chunkSettingInfo.CellCount+1) * (chunkSettingInfo.CellCount+1) * (chunkSettingInfo.CellCount+1));
-
-	const float ChunkSize = chunkSettingInfo.CellSize * chunkSettingInfo.CellCount;
-	const float VoxelSize = ChunkSize * chunkSettingInfo.ChunkCount;
-	const FVector ChunkPos = (FVector(chunkSettingInfo.ChunkIndex) + 0.5f) * ChunkSize - FVector(VoxelSize * 0.5f);
 	
 	for (int z=0; z < chunkSettingInfo.CellCount + 1; z += 1)
 	{
