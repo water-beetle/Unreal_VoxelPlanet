@@ -21,8 +21,6 @@ void AVoxelManager::BeginPlay()
 	Super::BeginPlay();
 
 	const double StartTime = FPlatformTime::Seconds();
-
-	int ind = 0;
 	
 	for (int32 x = 0; x < ChunkCount; ++x)
 	{
@@ -38,7 +36,6 @@ void AVoxelManager::BeginPlay()
 				Chunk->Build(ChunkInfo);
 				Chunk->SetVoxelManager(this);
 				RegisterChunk(FIntVector(x,y,z), Chunk);
-				ind++;
 			}
 		}
 	}
