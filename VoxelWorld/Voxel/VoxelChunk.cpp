@@ -218,11 +218,11 @@ void UVoxelChunk::ApplyBrushInternal(const FVector& HitLocation)
 		{
 			for (int x = 0; x <= chunkSettingInfo.CellCount; x++)
 			{
-				const FVector Pos      = FVector(x, y, z) * chunkSettingInfo.CellSize - FVector(ChunkSize) * 0.5f + ChunkPos;
-				const FVector BrushPos = HitLocation - GetOwner()->GetActorLocation();
-				const float   BrushDensity = FVector::Dist(Pos, BrushPos) - BrushRadius;
+				FVector Pos = FVector(x, y, z) * chunkSettingInfo.CellSize - FVector(ChunkSize) * 0.5f + ChunkPos;
+				FVector BrushPos = HitLocation - GetOwner()->GetActorLocation();
+				float BrushDensity = FVector::Dist(Pos, BrushPos) - BrushRadius;
 
-				const int Index = GetIndex(x, y, z, chunkSettingInfo.CellCount);
+				int Index = GetIndex(x, y, z, chunkSettingInfo.CellCount);
 				if (BrushDensity < VertexDensityData[Index].Density)
 				{
 					VertexDensityData[Index].Density = BrushDensity;
@@ -250,8 +250,9 @@ void UVoxelChunk::ApplyBrushInternal(const FVector& HitLocation)
 	}
 
 	UpdateMeshPartialCells(ModifiedCells);
-	// 원하면 거리기반 언로드 로직 복원
-	// if (!IsNearCamera()) UnloadMappings();
+
+	// if (!IsNearCamera())
+	// 	UnloadMappings();
 }
 
 void UVoxelChunk::UpdateMeshPartialCells(const TSet<FIntVector>& ModifiedCells)
@@ -363,8 +364,7 @@ void UVoxelChunk::UpdateMeshPartialCells(const TSet<FIntVector>& ModifiedCells)
                 Mappings.CellToTriangles.FindOrAdd(Cell).Add(TriID);
             }
         }
-
-        // 7) ★ 부분 갱신 후에도 전체 노멀 재계산
+    	
         FMeshNormals::QuickComputeVertexNormals(EditMesh);
     });
 
