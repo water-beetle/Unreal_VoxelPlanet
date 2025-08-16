@@ -216,13 +216,23 @@ void UVoxelChunk::ApplyBrushInternal(const FVector& HitLocation)
 				{
 					VertexDensityData[Index].Density = BrushDensity;
 
-					// 셀 인덱스 범위 안이면 ModifiedCells에 추가
-					if (x < chunkSettingInfo.CellCount && 
-						y < chunkSettingInfo.CellCount && 
-						z < chunkSettingInfo.CellCount)
-					{
-						ModifiedCells.Add(FIntVector(x, y, z));
-					}
+					// 정점(x,y,z)을 공유하는 8개 셀 모두 후보에 추가
+					for (int dx = -1; dx <= 0; ++dx)
+						for (int dy = -1; dy <= 0; ++dy)
+							for (int dz = -1; dz <= 0; ++dz)
+							{
+								const int cx = x + dx;
+								const int cy = y + dy;
+								const int cz = z + dz;
+
+								// 셀 유효 범위: [0, CellCount-1]
+								if (0 <= cx && cx < chunkSettingInfo.CellCount &&
+									0 <= cy && cy < chunkSettingInfo.CellCount &&
+									0 <= cz && cz < chunkSettingInfo.CellCount)
+								{
+									ModifiedCells.Add(FIntVector(cx, cy, cz));
+								}
+							}
 				}
 			}
 		}
