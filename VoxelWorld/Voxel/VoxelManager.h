@@ -34,6 +34,7 @@ public:
 	int CellCount;
 	UPROPERTY(EditAnywhere)
 	int ChunkCount;
+	UPROPERTY(EditAnywhere)
 	int LOD;
 
 private:
